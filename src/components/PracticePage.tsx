@@ -811,7 +811,9 @@ export function PracticePage({
                 <input
                   ref={inputRef}
                   type="text"
-                  inputMode="numeric"
+                  inputMode={
+                    userData.settings.showTouchNumpad ? 'none' : 'numeric'
+                  }
                   pattern="[0-9-]*"
                   autoComplete="off"
                   autoFocus
@@ -833,6 +835,46 @@ export function PracticePage({
                     }
                   }}
                 />
+
+                {userData.settings.showTouchNumpad && !feedback && (
+                  <div className="numpad-grid" role="group" aria-label="Number pad">
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', '↵'].map(
+                      (key) => (
+                        <button
+                          key={key}
+                          type="button"
+                          className="numpad-key"
+                          onClick={() => {
+                            if (key === '⌫') {
+                              setInputValue((v) => v.slice(0, -1));
+                              return;
+                            }
+                            if (key === '↵') {
+                              const trimmed = inputValue.trim();
+                              if (trimmed === '' || trimmed === '-') {
+                                if (retryCount > 0) submitAnswer(null, true);
+                              } else {
+                                const parsed = Number(trimmed);
+                                if (Number.isFinite(parsed)) submitAnswer(parsed);
+                              }
+                              return;
+                            }
+                            const next = inputValue + key;
+                            setInputValue(next);
+                            if (
+                              !userData.settings.requireSubmitButton &&
+                              Number(next) === currentQuestion.answer
+                            ) {
+                              submitAnswer(Number(next));
+                            }
+                          }}
+                        >
+                          {key}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                )}
 
                 {!feedback ? (
                   userData.settings.requireSubmitButton ? (

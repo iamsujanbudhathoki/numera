@@ -307,6 +307,28 @@ export function SettingsPage({
 
           <div className="setting-row">
             <div>
+              <div className="setting-label">On-Screen Numpad</div>
+              <div className="setting-desc">
+                Show a minimal touch keypad during practice instead of the mobile OS keyboard.
+              </div>
+            </div>
+            <select
+              className="select-input"
+              aria-label="On-Screen Numpad"
+              value={settings.showTouchNumpad ? 'on' : 'off'}
+              onChange={(e) =>
+                onUpdateSettings({
+                  showTouchNumpad: e.target.value === 'on',
+                })
+              }
+            >
+              <option value="off">Off</option>
+              <option value="on">On</option>
+            </select>
+          </div>
+
+          <div className="setting-row">
+            <div>
               <div className="setting-label">Practice Mode Timer</div>
               <div className="setting-desc">
                 Display elapsed seconds during untimed Practice Mode.

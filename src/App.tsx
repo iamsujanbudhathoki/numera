@@ -46,7 +46,7 @@ function getInitialRoute(): {
 function syncUrlForTab(tab: NavTab): void {
   const target = tab === 'overview' ? '/' : `/${tab}`;
   if (window.location.pathname !== target) {
-    window.history.replaceState(null, '', target);
+    window.history.pushState(null, '', target);
   }
 }
 
@@ -124,6 +124,28 @@ export function App() {
 
     return () => subscription.unsubscribe();
   }, [syncWithCloud]);
+
+  // Sync browser Back/Forward navigation
+  useEffect(() => {
+    const onPopState = () => {
+      const route = getInitialRoute();
+      setSessionActive(false);
+      if (route.isStartRoute) {
+        setPracticeOp('mixed');
+        setPracticeMode('practice');
+        setPracticeLevelOverride(3);
+        setAutoStartPractice(true);
+        setPracticeKey((n) => n + 1);
+      } else {
+        setAutoStartPractice(false);
+        setPracticeLevelOverride(undefined);
+      }
+      setActiveTab(route.tab);
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   // Apply theme preference
   useEffect(() => {

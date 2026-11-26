@@ -66,6 +66,7 @@ export interface UserSettings {
   dailyGoal: 20 | 30 | 50 | 100;
   autoAdvanceDelayMs: 0 | 350 | 700;
   requireSubmitButton: boolean;
+  showTouchNumpad: boolean;
 }
 
 export interface UserData {

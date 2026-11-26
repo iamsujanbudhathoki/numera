@@ -601,6 +601,35 @@ button {
   background: var(--error-subtle);
 }
 
+.numpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.numpad-key {
+  padding: 12px 0;
+  font-size: 18px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  transition: background-color 100ms ease, border-color 100ms ease;
+}
+
+.numpad-key:hover {
+  background: var(--surface-subtle);
+  border-color: var(--border-strong);
+}
+
+.numpad-key:active {
+  background: var(--border);
+}
+
 .feedback-slot {
   min-height: 76px;
   margin-top: 20px;

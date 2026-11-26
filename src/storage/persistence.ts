@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   dailyGoal: 30,
   autoAdvanceDelayMs: 350,
   requireSubmitButton: false,
+  showTouchNumpad: false,
 };
 
 export function createDefaultUserData(): UserData {
