@@ -8,8 +8,10 @@ import {
   computeAccuracy,
   computeAverageTimeMs,
   computeBestTimeMs,
+  computeOperationBreakdown,
   formatAccuracy,
   formatDurationMs,
+  formatTotalTimeMs,
 } from '../domain/analytics';
 import { generateQuestion } from '../domain/generator';
 import {
@@ -109,6 +111,8 @@ export function PracticePage({
   const [sessionStartedAt, setSessionStartedAt] = useState<number>(() =>
     autoStart ? Date.now() : 0,
   );
+  const [sessionEndedAt, setSessionEndedAt] = useState<number>(0);
+  const [showAllResults, setShowAllResults] = useState<boolean>(false);
   const [remainingSec, setRemainingSec] = useState<number>(
     userData.settings.speedModeDurationSec,
   );
@@ -199,10 +203,11 @@ export function PracticePage({
       const avgMs = computeAverageTimeMs(attemptsList) ?? 0;
       const bestMs = computeBestTimeMs(attemptsList);
 
+      const endedAt = Date.now();
       const session: SessionRecord = {
-        id: `sess-${Date.now()}`,
+        id: `sess-${endedAt}`,
         startedAt: sessionStartedAt,
-        endedAt: Date.now(),
+        endedAt,
         mode: selectedMode,
         operation: selectedOp,
         level: selectedLevel,
@@ -213,6 +218,8 @@ export function PracticePage({
       };
 
       const unlocked = onCompleteSession(session, attemptsList);
+      setSessionEndedAt(endedAt);
+      setShowAllResults(false);
       setLeveledUpTo(unlocked);
       setPhase('summary');
     },
@@ -966,7 +973,19 @@ export function PracticePage({
   const accuracy = computeAccuracy(sessionAttempts);
   const avgTime = computeAverageTimeMs(sessionAttempts);
   const bestTime = computeBestTimeMs(sessionAttempts);
+  const correctCount = sessionAttempts.filter((a) => a.isCorrect).length;
+  const totalTimeMs = Math.max(0, sessionEndedAt - sessionStartedAt);
   const mistakes = sessionAttempts.filter((a) => !a.isCorrect);
+  const sessionOpBreakdown = computeOperationBreakdown(sessionAttempts).filter(
+    (row) => row.attempts > 0,
+  );
+
+  const overallAcc = computeAccuracy(userData.attempts);
+  const overallAvg = computeAverageTimeMs(userData.attempts);
+  const accDelta =
+    accuracy !== null && overallAcc !== null ? accuracy - overallAcc : null;
+  const timeDeltaMs =
+    avgTime !== null && overallAvg !== null ? avgTime - overallAvg : null;
 
   return (
     <main className="page-container">
@@ -977,7 +996,8 @@ export function PracticePage({
             {MODE_META[selectedMode].label} ·{' '}
             {selectedOp === 'mixed'
               ? 'Mixed Operations'
-              : OPERATION_META[selectedOp].label}
+              : OPERATION_META[selectedOp].label}{' '}
+            · {formatTotalTimeMs(totalTimeMs)}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -1011,23 +1031,43 @@ export function PracticePage({
             fontSize: 14,
           }}
         >
-          Level unlocked: <strong>{OPERATION_META[selectedOp].label} Level {leveledUpTo}</strong> —{' '}
-          {getLevelDefinition(selectedOp, leveledUpTo).name}
+          Level unlocked:{' '}
+          <strong>
+            {OPERATION_META[selectedOp].label} Level {leveledUpTo}
+          </strong>{' '}
+          — {getLevelDefinition(selectedOp, leveledUpTo).name}
         </div>
       )}
 
-      <section className="metrics-strip">
+      <section className="metrics-strip" aria-label="Session results">
         <div className="metric-cell">
-          <div className="metric-label">Completed</div>
-          <div className="metric-value">{sessionAttempts.length}</div>
+          <div className="metric-label">Score</div>
+          <div className="metric-value">
+            {correctCount} / {sessionAttempts.length}
+          </div>
+          <div className="metric-sub">
+            {formatTotalTimeMs(totalTimeMs)} total
+          </div>
         </div>
         <div className="metric-cell">
           <div className="metric-label">Accuracy</div>
           <div className="metric-value">{formatAccuracy(accuracy)}</div>
+          {accDelta !== null && Math.abs(accDelta) >= 0.5 && (
+            <div className="metric-sub">
+              {accDelta > 0 ? '+' : ''}
+              {accDelta.toFixed(1)}% vs overall
+            </div>
+          )}
         </div>
         <div className="metric-cell">
-          <div className="metric-label">Avg Response</div>
+          <div className="metric-label">Avg / Question</div>
           <div className="metric-value">{formatDurationMs(avgTime)}</div>
+          {timeDeltaMs !== null && Math.abs(timeDeltaMs) >= 100 && (
+            <div className="metric-sub">
+              {timeDeltaMs < 0 ? '−' : '+'}
+              {(Math.abs(timeDeltaMs) / 1000).toFixed(1)}s vs overall
+            </div>
+          )}
         </div>
         <div className="metric-cell">
           <div className="metric-label">Best Response</div>
@@ -1035,34 +1075,92 @@ export function PracticePage({
         </div>
       </section>
 
-      {mistakes.length > 0 && (
-        <section className="section">
+      {sessionOpBreakdown.length > 1 && (
+        <section className="section" aria-label="Session breakdown by operation">
           <div className="section-header">
-            <h2 className="section-title">Review Mistakes</h2>
+            <h2 className="section-title">By Operation</h2>
           </div>
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Operation</th>
+                  <th className="num">Questions</th>
+                  <th className="num">Accuracy</th>
+                  <th className="num">Avg Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessionOpBreakdown.map((row) => (
+                  <tr key={row.operation}>
+                    <td>
+                      {OPERATION_META[row.operation].label}{' '}
+                      <span className="muted-cell">
+                        ({OPERATION_META[row.operation].symbol})
+                      </span>
+                    </td>
+                    <td className="num">{row.attempts}</td>
+                    <td className="num">{formatAccuracy(row.accuracy)}</td>
+                    <td className="num">{formatDurationMs(row.avgTimeMs)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      <section className="section" aria-label="Session question review">
+        <div className="section-header">
+          <h2 className="section-title">
+            {mistakes.length > 0 && !showAllResults
+              ? `Mistakes (${mistakes.length})`
+              : `Results (${sessionAttempts.length})`}
+          </h2>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ fontSize: 13 }}
+            onClick={() => setShowAllResults((v) => !v)}
+          >
+            {showAllResults ? 'Show mistakes only' : 'Show all questions'}
+          </button>
+        </div>
+
+        {!showAllResults && mistakes.length === 0 ? (
+          <p className="page-subtitle">Clean session — 0 mistakes.</p>
+        ) : (
           <div className="row-list">
-            {mistakes.map((m) => (
-              <div key={m.id} className="row-item" style={{ alignItems: 'flex-start' }}>
+            {(showAllResults ? sessionAttempts : mistakes).map((item) => (
+              <div
+                key={item.id}
+                className="row-item"
+                style={{ alignItems: 'flex-start' }}
+              >
                 <div>
                   <div className="op-name tabular">
-                    {m.expression} = {m.correctAnswer}
+                    {item.expression} = {item.correctAnswer}
                   </div>
-                  {m.strategy && (
+                  {!item.isCorrect && item.strategy && (
                     <div className="op-level" style={{ marginTop: 2 }}>
-                      {m.strategy}
+                      {item.strategy}
                     </div>
                   )}
                 </div>
                 <div className="op-stats">
-                  <span style={{ color: 'var(--error)' }}>
-                    Answered {m.userAnswer}
-                  </span>
+                  {item.isCorrect ? (
+                    <span>{formatDurationMs(item.responseTimeMs)}</span>
+                  ) : (
+                    <span style={{ color: 'var(--error)' }}>
+                      Answered {item.userAnswer ?? '—'}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
     </main>
   );
 }
