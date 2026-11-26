@@ -60,8 +60,11 @@ export function App() {
     initialRoute.isStartRoute ? 'mixed' : userData.lastOperation,
   );
   const [practiceMode, setPracticeMode] = useState<TrainingMode>(
-    initialRoute.isStartRoute ? 'adaptive' : userData.lastMode,
+    initialRoute.isStartRoute ? 'practice' : userData.lastMode,
   );
+  const [practiceLevelOverride, setPracticeLevelOverride] = useState<
+    DifficultyLevel | undefined
+  >(initialRoute.isStartRoute ? 3 : undefined);
   const [autoStartPractice, setAutoStartPractice] = useState<boolean>(
     initialRoute.isStartRoute,
   );
@@ -145,6 +148,7 @@ export function App() {
     (operation: Operation, mode?: TrainingMode) => {
       setPracticeOp(operation);
       setPracticeMode(mode ?? userData.lastMode);
+      setPracticeLevelOverride(undefined);
       setAutoStartPractice(true);
       setPracticeKey((n) => n + 1);
       setActiveTab('practice');
@@ -156,6 +160,7 @@ export function App() {
   const handleSelectTab = useCallback((tab: NavTab) => {
     if (tab === 'practice') {
       setAutoStartPractice(false);
+      setPracticeLevelOverride(undefined);
     }
     setActiveTab(tab);
     syncUrlForTab(tab);
@@ -308,6 +313,7 @@ export function App() {
           userData={userData}
           initialOperation={practiceOp}
           initialMode={practiceMode}
+          initialLevelOverride={practiceLevelOverride}
           autoStart={autoStartPractice}
           onSessionActiveChange={setSessionActive}
           onRecordAttempt={handleRecordAttempt}

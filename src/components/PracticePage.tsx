@@ -32,6 +32,7 @@ interface PracticePageProps {
   userData: UserData;
   initialOperation: Operation | 'mixed';
   initialMode: TrainingMode;
+  initialLevelOverride?: DifficultyLevel;
   autoStart?: boolean;
   onSessionActiveChange: (active: boolean) => void;
   onRecordAttempt: (attempt: Attempt) => void;
@@ -60,6 +61,7 @@ export function PracticePage({
   userData,
   initialOperation,
   initialMode,
+  initialLevelOverride,
   autoStart = false,
   onSessionActiveChange,
   onRecordAttempt,
@@ -67,14 +69,15 @@ export function PracticePage({
   onExitToOverview,
 }: PracticePageProps) {
   const initialLevel: DifficultyLevel =
-    initialOperation === 'mixed'
+    initialLevelOverride ??
+    (initialOperation === 'mixed'
       ? (Math.round(
           OPERATIONS.reduce(
             (sum, op) => sum + userData.operations[op].currentLevel,
             0,
           ) / OPERATIONS.length,
         ) as DifficultyLevel)
-      : userData.operations[initialOperation].currentLevel;
+      : userData.operations[initialOperation].currentLevel);
   const [phase, setPhase] = useState<Phase>(autoStart ? 'active' : 'setup');
   const [selectedOp, setSelectedOp] = useState<Operation | 'mixed'>(
     initialOperation,
