@@ -54,6 +54,16 @@ export function playWrongSound(): void {
 }
 
 export function playCompleteSound(): void {
+  if (typeof Audio !== 'undefined') {
+    const audio = new Audio('/sounds/complete.wav');
+    audio.volume = 0.6;
+    audio.play().catch(() => {
+      playTone(523.25, 0.12, 'sine', 0.045, 0);
+      playTone(659.25, 0.12, 'sine', 0.045, 0.08);
+      playTone(783.99, 0.18, 'sine', 0.05, 0.16);
+    });
+    return;
+  }
   playTone(523.25, 0.12, 'sine', 0.045, 0);
   playTone(659.25, 0.12, 'sine', 0.045, 0.08);
   playTone(783.99, 0.18, 'sine', 0.05, 0.16);
