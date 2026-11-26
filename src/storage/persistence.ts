@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   autoAdvanceDelayMs: 350,
   requireSubmitButton: false,
   showTouchNumpad: false,
+  soundEnabled: true,
 };
 
 export function createDefaultUserData(): UserData {

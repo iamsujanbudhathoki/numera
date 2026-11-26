@@ -1,4 +1,10 @@
+import { Volume2, VolumeX } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  playCompleteSound,
+  playCorrectSound,
+  playWrongSound,
+} from '../audio/sound';
 import {
   generateAdaptiveQuestion,
   updateAdaptiveState,
@@ -43,6 +49,7 @@ interface PracticePageProps {
     sessionAttempts: Attempt[],
   ) => DifficultyLevel | undefined;
   onExitToOverview: () => void;
+  onToggleSound?: () => void;
 }
 
 type Phase = 'setup' | 'active' | 'summary';
@@ -69,6 +76,7 @@ export function PracticePage({
   onRecordAttempt,
   onCompleteSession,
   onExitToOverview,
+  onToggleSound,
 }: PracticePageProps) {
   const initialLevel: DifficultyLevel =
     initialLevelOverride ??
@@ -218,6 +226,9 @@ export function PracticePage({
       };
 
       const unlocked = onCompleteSession(session, attemptsList);
+      if (userData.settings.soundEnabled) {
+        playCompleteSound();
+      }
       setSessionEndedAt(endedAt);
       setShowAllResults(false);
       setLeveledUpTo(unlocked);
@@ -230,6 +241,7 @@ export function PracticePage({
       selectedMode,
       selectedOp,
       sessionStartedAt,
+      userData.settings.soundEnabled,
     ],
   );
 
@@ -440,6 +452,10 @@ export function PracticePage({
           strategy: currentQuestion.strategy,
         });
 
+        if (userData.settings.soundEnabled) {
+          playCorrectSound();
+        }
+
         const delay = userData.settings.autoAdvanceDelayMs;
         if (delay === 0) {
           advanceToNextQuestion(updatedAttempts);
@@ -483,6 +499,9 @@ export function PracticePage({
 
         onRecordAttempt(attempt);
         setSessionAttempts((prev) => [...prev, attempt]);
+        if (userData.settings.soundEnabled) {
+          playWrongSound();
+        }
         setRetryCount(1);
         setInputValue('');
         focusInput();
@@ -509,6 +528,9 @@ export function PracticePage({
         setSessionAttempts((prev) => [...prev, attempt]);
       }
 
+      if (userData.settings.soundEnabled) {
+        playWrongSound();
+      }
       setFeedback({
         isCorrect: false,
         userAnswer: parsed,
@@ -527,6 +549,7 @@ export function PracticePage({
       selectedMode,
       sessionAttempts,
       userData.settings.autoAdvanceDelayMs,
+      userData.settings.soundEnabled,
     ],
   );
 
@@ -764,6 +787,25 @@ export function PracticePage({
               userData.settings.showTimerInPractice && (
                 <span style={{ marginRight: 8 }}>{elapsedQuestionSec}s</span>
               )}
+            {onToggleSound && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                aria-label={
+                  userData.settings.soundEnabled ? 'Mute sound' : 'Unmute sound'
+                }
+                title={
+                  userData.settings.soundEnabled ? 'Mute sound' : 'Unmute sound'
+                }
+                onClick={onToggleSound}
+              >
+                {userData.settings.soundEnabled ? (
+                  <Volume2 size={15} aria-hidden="true" />
+                ) : (
+                  <VolumeX size={15} aria-hidden="true" />
+                )}
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-ghost"

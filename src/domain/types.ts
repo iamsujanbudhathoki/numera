@@ -67,6 +67,7 @@ export interface UserSettings {
   autoAdvanceDelayMs: 0 | 350 | 700;
   requireSubmitButton: boolean;
   showTouchNumpad: boolean;
+  soundEnabled: boolean;
 }
 
 export interface UserData {

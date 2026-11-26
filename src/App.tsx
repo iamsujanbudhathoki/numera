@@ -341,6 +341,11 @@ export function App() {
           onRecordAttempt={handleRecordAttempt}
           onCompleteSession={handleCompleteSession}
           onExitToOverview={() => handleSelectTab('overview')}
+          onToggleSound={() =>
+            handleUpdateSettings({
+              soundEnabled: !userData.settings.soundEnabled,
+            })
+          }
         />
       )}
 

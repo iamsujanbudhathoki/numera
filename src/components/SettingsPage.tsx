@@ -307,6 +307,28 @@ export function SettingsPage({
 
           <div className="setting-row">
             <div>
+              <div className="setting-label">Sound Effects</div>
+              <div className="setting-desc">
+                Subtle audio cues for correct answers, mistakes, and session completion.
+              </div>
+            </div>
+            <select
+              className="select-input"
+              aria-label="Sound Effects"
+              value={settings.soundEnabled ? 'on' : 'off'}
+              onChange={(e) =>
+                onUpdateSettings({
+                  soundEnabled: e.target.value === 'on',
+                })
+              }
+            >
+              <option value="on">On</option>
+              <option value="off">Off</option>
+            </select>
+          </div>
+
+          <div className="setting-row">
+            <div>
               <div className="setting-label">On-Screen Numpad</div>
               <div className="setting-desc">
                 Show a minimal touch keypad during practice instead of the mobile OS keyboard.
