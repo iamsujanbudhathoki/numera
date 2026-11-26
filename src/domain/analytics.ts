@@ -1,5 +1,5 @@
 import { getLevelDefinition, OPERATION_META, OPERATIONS } from './levels';
-import type { Attempt, DifficultyLevel, Operation } from './types';
+import type { Attempt, DifficultyLevel, Operation, SessionRecord } from './types';
 
 export function toLocalDateKey(timestamp: number): string {
   const d = new Date(timestamp);
@@ -227,6 +227,82 @@ export function computeImprovementAreas(attempts: Attempt[]): ImprovementArea[] 
 export function formatDurationMs(ms: number | null): string {
   if (ms === null || !Number.isFinite(ms)) return '—';
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+export function formatTotalTimeMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return '0s';
+  const totalSec = Math.round(ms / 1000);
+  if (totalSec < 60) return `${totalSec}s`;
+  const mins = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  if (mins < 60) return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  return remMins > 0 ? `${hours}h ${remMins}m` : `${hours}h`;
+}
+
+export function computeTotalSessionTimeMs(sessions: SessionRecord[]): number {
+  return sessions.reduce(
+    (sum, s) => sum + Math.max(0, s.endedAt - s.startedAt),
+    0,
+  );
+}
+
+export interface DaySessionGroup {
+  dateKey: string;
+  label: string;
+  sessions: SessionRecord[];
+  totalQuestions: number;
+  correctCount: number;
+  totalTimeMs: number;
+  avgResponseTimeMs: number | null;
+}
+
+export function computeDaySessions(
+  sessions: SessionRecord[],
+  limitDays = 14,
+): DaySessionGroup[] {
+  const grouped = new Map<string, SessionRecord[]>();
+  for (const s of sessions) {
+    const key = toLocalDateKey(s.endedAt);
+    const list = grouped.get(key);
+    if (list) {
+      list.push(s);
+    } else {
+      grouped.set(key, [s]);
+    }
+  }
+
+  return Array.from(grouped.entries())
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .slice(0, limitDays)
+    .map(([dateKey, daySessions]) => {
+      const sorted = [...daySessions].sort((a, b) => b.endedAt - a.endedAt);
+      const totalQuestions = sorted.reduce((s, r) => s + r.totalQuestions, 0);
+      const correctCount = sorted.reduce((s, r) => s + r.correctCount, 0);
+      const totalTimeMs = computeTotalSessionTimeMs(sorted);
+      const weightedAvgSum = sorted.reduce(
+        (s, r) => s + r.averageResponseTimeMs * r.totalQuestions,
+        0,
+      );
+      const avgResponseTimeMs =
+        totalQuestions > 0 ? weightedAvgSum / totalQuestions : null;
+      const d = new Date(sorted[0].endedAt);
+      const label = d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+
+      return {
+        dateKey,
+        label,
+        sessions: sorted,
+        totalQuestions,
+        correctCount,
+        totalTimeMs,
+        avgResponseTimeMs,
+      };
+    });
 }
 
 export function formatAccuracy(acc: number | null): string {

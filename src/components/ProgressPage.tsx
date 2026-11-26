@@ -1,16 +1,20 @@
+import { useState } from 'react';
 import {
   computeAccuracy,
   computeAverageTimeMs,
   computeBestTimeMs,
   computeDailyHistory,
+  computeDaySessions,
   computeDifficultyBreakdown,
   computeImprovementAreas,
   computeOperationBreakdown,
+  computeTotalSessionTimeMs,
   formatAccuracy,
   formatDurationMs,
+  formatTotalTimeMs,
   getRecentMistakes,
 } from '../domain/analytics';
-import { OPERATION_META } from '../domain/levels';
+import { MODE_META, OPERATION_META } from '../domain/levels';
 import type { Operation, UserData } from '../domain/types';
 
 interface ProgressPageProps {
@@ -22,15 +26,21 @@ export function ProgressPage({
   userData,
   onPracticeOperation,
 }: ProgressPageProps) {
-  const { attempts } = userData;
+  const { attempts, sessions } = userData;
   const totalAttempts = attempts.length;
   const overallAcc = computeAccuracy(attempts);
   const avgTime = computeAverageTimeMs(attempts);
   const bestTime = computeBestTimeMs(attempts);
+  const totalPracticeMs = computeTotalSessionTimeMs(sessions);
 
   const dailyHistory = computeDailyHistory(attempts, 14);
   const activeDays = dailyHistory.filter((d) => d.count > 0).reverse();
+  const daySessions = computeDaySessions(sessions, 14);
   const maxDaily = Math.max(1, ...dailyHistory.map((d) => d.count));
+
+  const [expandedDay, setExpandedDay] = useState<string | null>(
+    daySessions[0]?.dateKey ?? null,
+  );
 
   const opBreakdown = computeOperationBreakdown(attempts);
   const diffBreakdown = computeDifficultyBreakdown(attempts);
@@ -51,6 +61,10 @@ export function ProgressPage({
         <div className="metric-cell">
           <div className="metric-label">Total Attempted</div>
           <div className="metric-value">{totalAttempts}</div>
+          <div className="metric-sub">
+            {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'} ·{' '}
+            {formatTotalTimeMs(totalPracticeMs)}
+          </div>
         </div>
         <div className="metric-cell">
           <div className="metric-label">Overall Accuracy</div>
@@ -194,34 +208,153 @@ export function ProgressPage({
         </div>
       </section>
 
-      {activeDays.length > 0 && (
-        <section className="section" aria-label="Daily records">
+      {daySessions.length > 0 ? (
+        <section className="section" aria-label="Daily sessions and analytics">
           <div className="section-header">
-            <h2 className="section-title">Daily Records</h2>
+            <h2 className="section-title">Daily Sessions</h2>
+            <span className="page-subtitle" style={{ margin: 0, fontSize: 12 }}>
+              Click a day to view sessions
+            </span>
           </div>
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th className="num">Questions</th>
-                  <th className="num">Accuracy</th>
-                  <th className="num">Avg Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeDays.map((day) => (
-                  <tr key={day.dateKey}>
-                    <td>{day.label}</td>
-                    <td className="num">{day.count}</td>
-                    <td className="num">{formatAccuracy(day.accuracy)}</td>
-                    <td className="num">{formatDurationMs(day.avgTimeMs)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="row-list">
+            {daySessions.map((day) => {
+              const isExpanded = expandedDay === day.dateKey;
+              const dayAcc =
+                day.totalQuestions > 0
+                  ? (day.correctCount / day.totalQuestions) * 100
+                  : null;
+
+              return (
+                <div
+                  key={day.dateKey}
+                  style={{ borderBottom: '1px solid var(--border)' }}
+                >
+                  <button
+                    type="button"
+                    className="row-item-interactive"
+                    style={{ borderBottom: 'none' }}
+                    aria-expanded={isExpanded}
+                    onClick={() =>
+                      setExpandedDay(isExpanded ? null : day.dateKey)
+                    }
+                  >
+                    <div>
+                      <div className="op-name">{day.label}</div>
+                      <div className="op-level">
+                        {day.sessions.length}{' '}
+                        {day.sessions.length === 1 ? 'session' : 'sessions'} ·{' '}
+                        {day.totalQuestions} questions
+                      </div>
+                    </div>
+                    <div className="op-stats">
+                      <span>{formatAccuracy(dayAcc)}</span>
+                      <span>{formatDurationMs(day.avgResponseTimeMs)} avg</span>
+                      <span>{formatTotalTimeMs(day.totalTimeMs)}</span>
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div
+                      style={{
+                        padding: '0 8px 14px 20px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                      }}
+                    >
+                      {day.sessions.map((s) => {
+                        const sessAcc =
+                          s.totalQuestions > 0
+                            ? (s.correctCount / s.totalQuestions) * 100
+                            : null;
+                        const opName =
+                          s.operation === 'mixed'
+                            ? 'Mixed'
+                            : OPERATION_META[s.operation].label;
+                        const timeStr = new Date(s.endedAt).toLocaleTimeString(
+                          'en-US',
+                          { hour: 'numeric', minute: '2-digit' },
+                        );
+                        const wholeTime = formatTotalTimeMs(
+                          Math.max(0, s.endedAt - s.startedAt),
+                        );
+
+                        return (
+                          <div
+                            key={s.id}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              flexWrap: 'wrap',
+                              gap: 8,
+                              padding: '8px 10px',
+                              border: '1px solid var(--border)',
+                              borderRadius: 'var(--radius-sm)',
+                              fontSize: 13,
+                            }}
+                          >
+                            <div>
+                              <span style={{ fontWeight: 500 }}>
+                                {opName} · L{s.level}
+                              </span>{' '}
+                              <span className="muted-cell">
+                                ({MODE_META[s.mode].label} · {timeStr})
+                              </span>
+                            </div>
+                            <div
+                              className="tabular muted-cell"
+                              style={{ display: 'flex', gap: 14 }}
+                            >
+                              <span>
+                                {s.correctCount}/{s.totalQuestions} (
+                                {formatAccuracy(sessAcc)})
+                              </span>
+                              <span>
+                                {formatDurationMs(s.averageResponseTimeMs)}/q
+                              </span>
+                              <span>{wholeTime}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
+      ) : (
+        activeDays.length > 0 && (
+          <section className="section" aria-label="Daily records">
+            <div className="section-header">
+              <h2 className="section-title">Daily Records</h2>
+            </div>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th className="num">Questions</th>
+                    <th className="num">Accuracy</th>
+                    <th className="num">Avg Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeDays.map((day) => (
+                    <tr key={day.dateKey}>
+                      <td>{day.label}</td>
+                      <td className="num">{day.count}</td>
+                      <td className="num">{formatAccuracy(day.accuracy)}</td>
+                      <td className="num">{formatDurationMs(day.avgTimeMs)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )
       )}
 
       {attempts.length > 0 && (
