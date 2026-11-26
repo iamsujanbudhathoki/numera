@@ -48,7 +48,9 @@ export function SettingsPage({
         });
         if (error) throw error;
         if (!data.session) {
-          setAuthMessage('Check your email to confirm your account.');
+          setAuthMessage(
+            'Account created. Turn off "Confirm email" in Supabase Auth settings for instant sign-in.',
+          );
         }
       }
       setPassword('');
