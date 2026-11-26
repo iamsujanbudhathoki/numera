@@ -316,7 +316,12 @@ export function App() {
         />
       )}
 
-      {activeTab === 'progress' && <ProgressPage userData={userData} />}
+      {activeTab === 'progress' && (
+        <ProgressPage
+          userData={userData}
+          onPracticeOperation={handleStartPracticeFromOverview}
+        />
+      )}
 
       {activeTab === 'settings' && (
         <SettingsPage

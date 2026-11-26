@@ -60,6 +60,7 @@ export interface DailyHistoryEntry {
   label: string;
   count: number;
   accuracy: number | null;
+  avgTimeMs: number | null;
 }
 
 export function computeDailyHistory(
@@ -90,6 +91,7 @@ export function computeDailyHistory(
       label,
       count: dayAttempts.length,
       accuracy: computeAccuracy(dayAttempts),
+      avgTimeMs: computeAverageTimeMs(dayAttempts),
     });
   }
 

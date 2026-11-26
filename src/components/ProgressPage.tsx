@@ -11,13 +11,17 @@ import {
   getRecentMistakes,
 } from '../domain/analytics';
 import { OPERATION_META } from '../domain/levels';
-import type { UserData } from '../domain/types';
+import type { Operation, UserData } from '../domain/types';
 
 interface ProgressPageProps {
   userData: UserData;
+  onPracticeOperation?: (operation: Operation) => void;
 }
 
-export function ProgressPage({ userData }: ProgressPageProps) {
+export function ProgressPage({
+  userData,
+  onPracticeOperation,
+}: ProgressPageProps) {
   const { attempts } = userData;
   const totalAttempts = attempts.length;
   const overallAcc = computeAccuracy(attempts);
@@ -25,6 +29,7 @@ export function ProgressPage({ userData }: ProgressPageProps) {
   const bestTime = computeBestTimeMs(attempts);
 
   const dailyHistory = computeDailyHistory(attempts, 14);
+  const activeDays = dailyHistory.filter((d) => d.count > 0).reverse();
   const maxDaily = Math.max(1, ...dailyHistory.map((d) => d.count));
 
   const opBreakdown = computeOperationBreakdown(attempts);
@@ -189,19 +194,69 @@ export function ProgressPage({ userData }: ProgressPageProps) {
         </div>
       </section>
 
-      {improvementAreas.length > 0 && (
+      {activeDays.length > 0 && (
+        <section className="section" aria-label="Daily records">
+          <div className="section-header">
+            <h2 className="section-title">Daily Records</h2>
+          </div>
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th className="num">Questions</th>
+                  <th className="num">Accuracy</th>
+                  <th className="num">Avg Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activeDays.map((day) => (
+                  <tr key={day.dateKey}>
+                    <td>{day.label}</td>
+                    <td className="num">{day.count}</td>
+                    <td className="num">{formatAccuracy(day.accuracy)}</td>
+                    <td className="num">{formatDurationMs(day.avgTimeMs)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {attempts.length > 0 && (
         <section className="section" aria-label="Areas requiring improvement">
           <div className="section-header">
-            <h2 className="section-title">Focus Areas</h2>
+            <h2 className="section-title">Areas for Improvement</h2>
           </div>
-          <div className="row-list">
-            {improvementAreas.map((area) => (
-              <div key={`${area.operation}-${area.level}`} className="row-item">
-                <div className="op-name">{area.title}</div>
-                <div className="op-stats">{area.detail}</div>
-              </div>
-            ))}
-          </div>
+          {improvementAreas.length > 0 ? (
+            <div className="row-list">
+              {improvementAreas.map((area) => (
+                <div
+                  key={`${area.operation}-${area.level}`}
+                  className="row-item"
+                >
+                  <div>
+                    <div className="op-name">{area.title}</div>
+                    <div className="op-level">{area.detail}</div>
+                  </div>
+                  {onPracticeOperation && (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => onPracticeOperation(area.operation)}
+                    >
+                      Practice
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="page-subtitle">
+              No weak areas detected — accuracy and response times are on target.
+            </p>
+          )}
         </section>
       )}
 
