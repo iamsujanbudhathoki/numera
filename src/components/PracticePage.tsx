@@ -100,6 +100,7 @@ export function PracticePage({
   });
   const [inputValue, setInputValue] = useState('');
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+  const [retryCount, setRetryCount] = useState<number>(0);
   const [isPaused, setIsPaused] = useState(false);
   const [sessionAttempts, setSessionAttempts] = useState<Attempt[]>([]);
   const [sessionStartedAt, setSessionStartedAt] = useState<number>(() =>
@@ -244,6 +245,7 @@ export function PracticePage({
       setCurrentQuestion(firstQ);
       setInputValue('');
       setFeedback(null);
+      setRetryCount(0);
       setIsPaused(false);
       setSessionAttempts([]);
       setLeveledUpTo(undefined);
@@ -325,6 +327,7 @@ export function PracticePage({
       setCurrentQuestion(nextQ);
       setInputValue('');
       setFeedback(null);
+      setRetryCount(0);
       setElapsedQuestionSec(0);
       questionStartRef.current = performance.now();
       pausedAccumulatedRef.current = 0;
@@ -371,6 +374,152 @@ export function PracticePage({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleTogglePause, phase]);
 
+  const submitAnswer = useCallback(
+    (parsed: number | null, forceReveal = false) => {
+      if (!currentQuestion || isPaused) return;
+
+      const now = performance.now();
+      const rawTime =
+        now - questionStartRef.current - pausedAccumulatedRef.current;
+      const responseTimeMs = Math.max(100, Math.round(rawTime));
+      const isCorrect = parsed !== null && parsed === currentQuestion.answer;
+
+      if (isCorrect) {
+        const attempt: Attempt = {
+          id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          timestamp: Date.now(),
+          operation: currentQuestion.operation,
+          level: currentQuestion.level,
+          mode: selectedMode,
+          expression: currentQuestion.expression,
+          correctAnswer: currentQuestion.answer,
+          userAnswer: parsed,
+          isCorrect: true,
+          responseTimeMs,
+          strategy: currentQuestion.strategy,
+          skillTag: currentQuestion.skillTag,
+        };
+
+        if (selectedMode === 'adaptive') {
+          adaptiveStateRef.current = updateAdaptiveState(
+            adaptiveStateRef.current,
+            {
+              operation: currentQuestion.operation,
+              level: currentQuestion.level,
+              isCorrect: true,
+              responseTimeMs,
+            },
+          );
+        }
+
+        // Only record attempt if not already recorded on 1st miss
+        const updatedAttempts =
+          retryCount === 0
+            ? [...sessionAttempts, attempt]
+            : sessionAttempts;
+        if (retryCount === 0) {
+          onRecordAttempt(attempt);
+          setSessionAttempts(updatedAttempts);
+        }
+
+        setFeedback({
+          isCorrect: true,
+          userAnswer: parsed,
+          correctAnswer: currentQuestion.answer,
+          responseTimeMs,
+          strategy: currentQuestion.strategy,
+        });
+
+        const delay = userData.settings.autoAdvanceDelayMs;
+        if (delay === 0) {
+          advanceToNextQuestion(updatedAttempts);
+        } else {
+          autoAdvanceTimerRef.current = window.setTimeout(() => {
+            autoAdvanceTimerRef.current = null;
+            advanceToNextQuestion(updatedAttempts);
+          }, delay);
+        }
+        return;
+      }
+
+      // Wrong answer or reveal
+      if (retryCount === 0 && !forceReveal) {
+        const attempt: Attempt = {
+          id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          timestamp: Date.now(),
+          operation: currentQuestion.operation,
+          level: currentQuestion.level,
+          mode: selectedMode,
+          expression: currentQuestion.expression,
+          correctAnswer: currentQuestion.answer,
+          userAnswer: parsed,
+          isCorrect: false,
+          responseTimeMs,
+          strategy: currentQuestion.strategy,
+          skillTag: currentQuestion.skillTag,
+        };
+
+        if (selectedMode === 'adaptive') {
+          adaptiveStateRef.current = updateAdaptiveState(
+            adaptiveStateRef.current,
+            {
+              operation: currentQuestion.operation,
+              level: currentQuestion.level,
+              isCorrect: false,
+              responseTimeMs,
+            },
+          );
+        }
+
+        onRecordAttempt(attempt);
+        setSessionAttempts((prev) => [...prev, attempt]);
+        setRetryCount(1);
+        setInputValue('');
+        focusInput();
+        return;
+      }
+
+      // 2nd miss or explicit Reveal
+      if (retryCount === 0 && forceReveal) {
+        const attempt: Attempt = {
+          id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          timestamp: Date.now(),
+          operation: currentQuestion.operation,
+          level: currentQuestion.level,
+          mode: selectedMode,
+          expression: currentQuestion.expression,
+          correctAnswer: currentQuestion.answer,
+          userAnswer: parsed,
+          isCorrect: false,
+          responseTimeMs,
+          strategy: currentQuestion.strategy,
+          skillTag: currentQuestion.skillTag,
+        };
+        onRecordAttempt(attempt);
+        setSessionAttempts((prev) => [...prev, attempt]);
+      }
+
+      setFeedback({
+        isCorrect: false,
+        userAnswer: parsed,
+        correctAnswer: currentQuestion.answer,
+        responseTimeMs,
+        strategy: currentQuestion.strategy,
+      });
+    },
+    [
+      advanceToNextQuestion,
+      currentQuestion,
+      focusInput,
+      isPaused,
+      onRecordAttempt,
+      retryCount,
+      selectedMode,
+      sessionAttempts,
+      userData.settings.autoAdvanceDelayMs,
+    ],
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentQuestion || isPaused) return;
@@ -392,64 +541,17 @@ export function PracticePage({
     }
 
     const trimmed = inputValue.trim();
-    if (trimmed === '' || trimmed === '-') return;
+    if (trimmed === '' || trimmed === '-') {
+      if (retryCount > 0) {
+        submitAnswer(null, true);
+      }
+      return;
+    }
 
     const parsed = Number(trimmed);
     if (!Number.isFinite(parsed)) return;
 
-    const now = performance.now();
-    const rawTime =
-      now - questionStartRef.current - pausedAccumulatedRef.current;
-    const responseTimeMs = Math.max(100, Math.round(rawTime));
-    const isCorrect = parsed === currentQuestion.answer;
-
-    const attempt: Attempt = {
-      id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      timestamp: Date.now(),
-      operation: currentQuestion.operation,
-      level: currentQuestion.level,
-      mode: selectedMode,
-      expression: currentQuestion.expression,
-      correctAnswer: currentQuestion.answer,
-      userAnswer: parsed,
-      isCorrect,
-      responseTimeMs,
-      strategy: currentQuestion.strategy,
-      skillTag: currentQuestion.skillTag,
-    };
-
-    if (selectedMode === 'adaptive') {
-      adaptiveStateRef.current = updateAdaptiveState(adaptiveStateRef.current, {
-        operation: currentQuestion.operation,
-        level: currentQuestion.level,
-        isCorrect,
-        responseTimeMs,
-      });
-    }
-
-    onRecordAttempt(attempt);
-    const updatedAttempts = [...sessionAttempts, attempt];
-    setSessionAttempts(updatedAttempts);
-
-    setFeedback({
-      isCorrect,
-      userAnswer: parsed,
-      correctAnswer: currentQuestion.answer,
-      responseTimeMs,
-      strategy: currentQuestion.strategy,
-    });
-
-    if (isCorrect) {
-      const delay = userData.settings.autoAdvanceDelayMs;
-      if (delay === 0) {
-        advanceToNextQuestion(updatedAttempts);
-      } else {
-        autoAdvanceTimerRef.current = window.setTimeout(() => {
-          autoAdvanceTimerRef.current = null;
-          advanceToNextQuestion(updatedAttempts);
-        }, delay);
-      }
-    }
+    submitAnswer(parsed);
   };
 
   // Cleanup timer on unmount
@@ -711,25 +813,43 @@ export function PracticePage({
                   autoComplete="off"
                   autoFocus
                   className={inputClass}
-                  placeholder="Your answer"
+                  placeholder={retryCount > 0 ? 'Try again' : 'Your answer'}
                   aria-label="Your answer"
                   value={inputValue}
                   onChange={(e) => {
                     if (feedback) return;
                     const cleaned = e.target.value.replace(/[^0-9-]/g, '');
                     setInputValue(cleaned);
+                    if (
+                      !userData.settings.requireSubmitButton &&
+                      cleaned !== '' &&
+                      cleaned !== '-' &&
+                      Number(cleaned) === currentQuestion.answer
+                    ) {
+                      submitAnswer(Number(cleaned));
+                    }
                   }}
                 />
 
                 {!feedback ? (
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    style={{ width: '100%' }}
-                    disabled={inputValue.trim() === ''}
-                  >
-                    Submit
-                  </button>
+                  userData.settings.requireSubmitButton ? (
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      style={{ width: '100%' }}
+                      disabled={inputValue.trim() === ''}
+                    >
+                      Submit
+                    </button>
+                  ) : retryCount > 0 ? (
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={() => submitAnswer(null, true)}
+                    >
+                      Reveal answer
+                    </button>
+                  ) : null
                 ) : !feedback.isCorrect ? (
                   <button
                     type="submit"
@@ -748,11 +868,21 @@ export function PracticePage({
                   </div>
                 )}
 
+                {!feedback && retryCount > 0 && (
+                  <div className="feedback-wrong">
+                    <div className="feedback-wrong-line">
+                      Not quite — try again
+                    </div>
+                  </div>
+                )}
+
                 {feedback && !feedback.isCorrect && (
                   <div className="feedback-wrong">
                     <div className="feedback-wrong-line">
-                      Your answer: {feedback.userAnswer} · Correct:{' '}
-                      {feedback.correctAnswer}
+                      {feedback.userAnswer !== null
+                        ? `Your answer: ${feedback.userAnswer} · `
+                        : ''}
+                      Correct: {feedback.correctAnswer}
                     </div>
                     {feedback.strategy && (
                       <div className="feedback-strategy">

@@ -285,6 +285,28 @@ export function SettingsPage({
 
           <div className="setting-row">
             <div>
+              <div className="setting-label">Answer Submission</div>
+              <div className="setting-desc">
+                Auto-submit when your typed answer matches, or require Submit / Enter.
+              </div>
+            </div>
+            <select
+              className="select-input"
+              aria-label="Answer Submission"
+              value={settings.requireSubmitButton ? 'manual' : 'auto'}
+              onChange={(e) =>
+                onUpdateSettings({
+                  requireSubmitButton: e.target.value === 'manual',
+                })
+              }
+            >
+              <option value="auto">Auto-submit on match</option>
+              <option value="manual">Require Submit button</option>
+            </select>
+          </div>
+
+          <div className="setting-row">
+            <div>
               <div className="setting-label">Practice Mode Timer</div>
               <div className="setting-desc">
                 Display elapsed seconds during untimed Practice Mode.

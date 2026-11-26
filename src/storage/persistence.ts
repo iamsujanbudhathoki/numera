@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   showTimerInPractice: false,
   dailyGoal: 30,
   autoAdvanceDelayMs: 350,
+  requireSubmitButton: false,
 };
 
 export function createDefaultUserData(): UserData {

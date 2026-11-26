@@ -65,6 +65,7 @@ export interface UserSettings {
   showTimerInPractice: boolean;
   dailyGoal: 20 | 30 | 50 | 100;
   autoAdvanceDelayMs: 0 | 350 | 700;
+  requireSubmitButton: boolean;
 }
 
 export interface UserData {
