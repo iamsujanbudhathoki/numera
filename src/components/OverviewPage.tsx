@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ChevronRight } from 'lucide-react';
 import {
   computeAccuracy,
   computeAverageTimeMs,
@@ -145,7 +145,12 @@ export function OverviewPage({ userData, onStartPractice }: OverviewPageProps) {
                   <span className="op-stat-col" title="Average response time">
                     {formatDurationMs(avgMs)}
                   </span>
-                  <span className="op-action-hint">Practice</span>
+                  <span
+                    className="op-action-hint"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}
+                  >
+                    Practice <ChevronRight size={14} aria-hidden="true" />
+                  </span>
                 </div>
               </button>
             );

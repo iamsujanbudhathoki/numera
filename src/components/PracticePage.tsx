@@ -579,7 +579,7 @@ export function PracticePage({
           <div>
             <h1 className="page-title">Practice</h1>
             <p className="page-subtitle">
-              Configure your session and begin immediately.
+              Configure a custom session, or use Overview for one-click start.
             </p>
           </div>
         </div>
@@ -773,6 +773,24 @@ export function PracticePage({
             </button>
           </div>
         </header>
+
+        <div
+          className="hairline-progress"
+          style={{ marginTop: 6 }}
+          aria-hidden="true"
+        >
+          <div
+            className="hairline-progress-fill"
+            style={{
+              width: `${
+                selectedMode === 'speed'
+                  ? (remainingSec / userData.settings.speedModeDurationSec) *
+                    100
+                  : Math.min(100, (sessionAttempts.length / targetCount) * 100)
+              }%`,
+            }}
+          />
+        </div>
 
         <main className="arena-center">
           {isPaused ? (

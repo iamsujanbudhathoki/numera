@@ -48,6 +48,31 @@ export function ProgressPage({
   const recentMistakes = getRecentMistakes(attempts, 8);
   const improvementAreas = computeImprovementAreas(attempts);
 
+  if (totalAttempts === 0) {
+    return (
+      <main className="page-container">
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Progress</h1>
+            <p className="page-subtitle">
+              No practice sessions yet. Complete your first session to see
+              fluency metrics and daily history.
+            </p>
+          </div>
+          {onPracticeOperation && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => onPracticeOperation(userData.lastOperation)}
+            >
+              Start Practicing
+            </button>
+          )}
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="page-container">
       <div className="page-header">
